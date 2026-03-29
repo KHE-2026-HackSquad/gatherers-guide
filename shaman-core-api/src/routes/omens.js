@@ -46,11 +46,12 @@ function generateOmen(prediction, frostRisk) {
 // ── GET /omens ────────────────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
-    const cropType = req.query.crop || "corn";
+    const cropType = (req.query.crop || "corn").toLowerCase().trim();
     const forecast = await getForecast();
 
-    // Frost risk: any hour in next 48h at or below 36°F
-    const next48    = Array.from(forecast.temperature_2m || []).slice(0, 48);
+    // temperature_2m is a Float32Array — convert to plain array first
+    const allTemps  = Array.from(forecast.temperature_2m || []);
+    const next48    = allTemps.slice(0, 48);
     const frostRisk = next48.some(t => t <= 36) ? "HIGH" : "LOW";
     const minTemp   = next48.length ? Math.min(...next48).toFixed(1) : "N/A";
 

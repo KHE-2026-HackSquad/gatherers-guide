@@ -15,11 +15,12 @@ function buildFeatureVector(forecast, cropType = "corn") {
   const soilTemp = Array.from(forecast.soil_temperature_0cm || []);
   const soilMoist= Array.from(forecast.soil_moisture_0_to_1cm || []);
 
-  const threshold    = FROST_THRESHOLDS[cropType] ?? 28;
-  const next48Temps  = temps.slice(0, 48);
-  const next7dPrecip = precip.slice(0, 168);
+  const threshold        = FROST_THRESHOLDS[cropType] ?? 28;
+  const next48Temps      = temps.slice(0, 48);
+  const next7dPrecip     = precip.slice(0, 168);
 
   const minTemp48h       = next48Temps.length ? Math.min(...next48Temps) : 50;
+  // Count hours below THIS crop's frost threshold — differs per crop
   const frostDegreeHours = next48Temps.filter(t => t < threshold).length;
   const precip7dayIn     = next7dPrecip.reduce((a, b) => a + (b || 0), 0);
   const avgHumidity      = humidity.slice(0, 48).reduce((a, b) => a + (b || 0), 0) / 48;
@@ -59,7 +60,7 @@ async function getPrediction(forecast, cropType = "corn") {
     return {
       cropLossProbability: parseFloat(score.toFixed(2)),
       plantingScore:       Math.max(0, Math.round(100 - score * 100)),
-      recommendedWaitDays: score > 0.6 ? 3 : score > 0.3 ? 1 : 0,
+      recommendedWaitDays: score > 0.6 ? 3 : score > 0.3 ? 1 : features.frost_degree_hours > 0 ? 2 : 0,
       confidence:          result?.predictions?.[0]?.confidence ?? 0.85,
       source:              "xgboost",
       features,
