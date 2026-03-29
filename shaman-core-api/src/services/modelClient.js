@@ -40,7 +40,10 @@ function buildFeatureVector(forecast, cropType = "corn") {
 
   // 6. Calculate Features based strictly on future data
   const minTemp48h       = next48.length ? Math.min(...next48.map(d => d.temp)) : 50;
-  const frostDegreeHours = next48.filter(d => d.temp < threshold).length;
+  // Degree-hours = sum of (threshold - temp) for each hour below threshold
+  const frostDegreeHours = next48
+    .filter(d => d.temp < threshold)
+    .reduce((sum, d) => sum + (threshold - d.temp), 0);
   const precip7dayIn     = next7d.reduce((a, b) => a + (b.precip || 0), 0);
   
   const avgHumidity      = next48.length ? next48.reduce((a, b) => a + b.humid, 0) / next48.length : 60;

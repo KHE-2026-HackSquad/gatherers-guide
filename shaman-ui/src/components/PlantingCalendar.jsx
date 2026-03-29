@@ -2,7 +2,15 @@
 // forecast.hourly = [{ time, temperature, precipitation, windGusts, humidity }, ...]
 import React, { useMemo } from "react";
 
-function scoreDay(hours) {
+const FROST_THRESHOLDS = {
+  strawberry: 32,
+  tomato:     33,
+  soybean:    30,
+  corn:       28,
+  wheat:      24,
+};
+
+function scoreDay(hours, frostThreshold) {
   if (!hours.length) return 0;
   let score = 100;
   const minTemp = Math.min(...hours.map(h => h.temperature));
@@ -10,8 +18,8 @@ function scoreDay(hours) {
   const maxGust = Math.max(...hours.map(h => h.windGusts));
   const avgHumidity = hours.reduce((a, h) => a + h.humidity, 0) / hours.length;
 
-  if (minTemp < 32)        score -= 40;
-  else if (minTemp < 36)   score -= 20;
+  if (minTemp < frostThreshold)          score -= 40;
+  else if (minTemp < frostThreshold + 4) score -= 20;
   if (totalPrecip > 0.5)   score -= 30;
   else if (totalPrecip > 0.2) score -= 15;
   if (maxGust > 35)        score -= 20;
@@ -27,7 +35,9 @@ const RATING = (score) => {
   return              { label: "Forbidden",  bg: "bg-red-950/40", border: "border-red-600",  text: "text-red-400"   };
 };
 
-export default function PlantingCalendar({ forecast }) {
+export default function PlantingCalendar({ forecast, crop = "corn" }) {
+  const frostThreshold = FROST_THRESHOLDS[crop] ?? 28;
+
   const days = useMemo(() => {
     if (!forecast?.hourly?.length) return [];
 
@@ -40,7 +50,7 @@ export default function PlantingCalendar({ forecast }) {
     });
 
     return Object.entries(byDay).slice(0, 7).map(([date, hours]) => {
-      const score = scoreDay(hours);
+      const score = scoreDay(hours, frostThreshold);
       const rating = RATING(score);
       const d = new Date(date + "T12:00:00");
       return {
