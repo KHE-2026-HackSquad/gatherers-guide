@@ -77,8 +77,8 @@ export default function App() {
           <>
             <OmenFeed omen={omen} crop={crop} />
             <CurrentConditions forecast={forecast} />
-            <RiskTimeline forecast={forecast} />
-            <PlantingCalendar forecast={forecast} />
+            <RiskTimeline forecast={forecast} crop={crop} />
+            <PlantingCalendar forecast={forecast} />graph 
             <SprayWindows forecast={forecast} />
           </>
         )}

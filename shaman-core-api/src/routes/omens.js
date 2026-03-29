@@ -2,7 +2,7 @@
 const express       = require("express");
 const router        = express.Router();
 const { getForecast }   = require("../services/nwsOracle");
-const { getPrediction } = require("../services/modelClient");
+const { getPrediction, FROST_THRESHOLDS } = require("../services/modelClient");
 
 // ── Shaman omen language ──────────────────────────────────────────────────
 function generateOmen(prediction, frostRisk) {
@@ -52,7 +52,8 @@ router.get("/", async (req, res) => {
     // temperature_2m is a Float32Array — convert to plain array first
     const allTemps  = Array.from(forecast.temperature_2m || []);
     const next48    = allTemps.slice(0, 48);
-    const frostRisk = next48.some(t => t <= 36) ? "HIGH" : "LOW";
+    const threshold = FROST_THRESHOLDS[cropType] ?? 28;
+    const frostRisk = next48.some(t => t <= threshold) ? "HIGH" : "LOW";
     const minTemp   = next48.length ? Math.min(...next48).toFixed(1) : "N/A";
 
     const prediction = await getPrediction(forecast, cropType);

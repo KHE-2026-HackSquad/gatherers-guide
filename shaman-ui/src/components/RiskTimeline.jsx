@@ -4,17 +4,26 @@ import {
   Tooltip, ResponsiveContainer, ReferenceLine, Scatter 
 } from 'recharts';
 
-const RiskTimeline = ({ forecast }) => {
+const FROST_THRESHOLDS = {
+  strawberry: 32,
+  tomato: 33,
+  corn: 28,
+  soybean: 28,
+  wheat: 22,
+};
+
+const RiskTimeline = ({ forecast, crop = 'corn' }) => {
   if (!forecast || !forecast.hourly) return null;
 
   // 1. Slice to exactly 48 hours for a tighter "Critical Window" view
+  const threshold = FROST_THRESHOLDS[crop?.toLowerCase()] ?? 28;
   const data = forecast.hourly.slice(0, 48).map(h => ({
     ...h,
     displayTime: new Date(h.time).toLocaleTimeString([], { 
       month: 'numeric', day: 'numeric', hour: '2-digit' 
     }),
-    // Logic for the Blue Dots: Trigger if temp is at or below 32°F
-    frostPoint: h.temperature <= 32 ? h.temperature : null
+    // Logic for the Frost Dots: Trigger if temp is at or below crop threshold
+    frostPoint: h.temperature <= threshold ? h.temperature : null
   }));
 
   // Custom Tooltip to keep the Shamanic theme
@@ -26,7 +35,7 @@ const RiskTimeline = ({ forecast }) => {
           <p className="text-ember font-bold text-xs mb-1">{d.displayTime}</p>
           <p className="text-stone-light text-sm">Temp: <span className="text-white">{d.temperature}°F</span></p>
           <p className="text-stone-light text-sm">Precip: <span className="text-sky-400">{d.precipitation}"</span></p>
-          {d.temperature <= 32 && (
+          {d.temperature <= threshold && (
             <p className="text-sky-300 text-[10px] mt-1 italic">❄️ Frost Spirit Active</p>
           )}
         </div>
@@ -41,10 +50,9 @@ const RiskTimeline = ({ forecast }) => {
       <div className="flex items-center gap-4 mb-6 text-[10px] uppercase tracking-widest text-stone">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)]"></span>
-          <span>Blue dots = Frost Threshold (≤32°F)</span>
+          <span>Blue dots = Frost Threshold (≤{threshold}°F)</span>
         </div>
       </div>
-
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
