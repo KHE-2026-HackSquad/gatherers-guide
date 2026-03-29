@@ -1,0 +1,14 @@
+{
+  "name": "shaman-ml-pipeline",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "fetch": "node src/fetchData.mjs",
+    "engineer": "python src/feature_engineering.py",
+    "train": "python src/train_model.py",
+    "serve": "python src/model_server.py"
+  },
+  "dependencies": {
+    "openmeteo": "^1.0.0"
+  }
+}
