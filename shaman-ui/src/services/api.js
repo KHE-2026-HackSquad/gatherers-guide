@@ -1,8 +1,9 @@
 // services/api.js
 import axios from "axios";
 
+const baseURL = import.meta.env.VITE_API_URL || "/api";
 const api = axios.create({
-  baseURL: "/api",   // proxied to Express via vite.config.js
+  baseURL,
   timeout: 15000,
 });
 
@@ -17,3 +18,4 @@ export async function fetchForecast() {
 }
 
 export default api;
+

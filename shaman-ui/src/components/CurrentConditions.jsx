@@ -1,4 +1,5 @@
 // components/CurrentConditions.jsx
+// forecast.hourly = array of objects: [{ time, temperature, feelsLike, ... }]
 import React from "react";
 
 const WMO_CODES = {
@@ -16,6 +17,7 @@ const WMO_CODES = {
 export default function CurrentConditions({ forecast }) {
   if (!forecast?.hourly?.length) return null;
 
+  // hourly is array of objects — first entry = current hour
   const now = forecast.hourly[0];
 
   return (

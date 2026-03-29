@@ -1,4 +1,5 @@
 // components/PlantingCalendar.jsx
+// forecast.hourly = [{ time, temperature, precipitation, windGusts, humidity }, ...]
 import React, { useMemo } from "react";
 
 function scoreDay(hours) {
@@ -28,11 +29,12 @@ const RATING = (score) => {
 
 export default function PlantingCalendar({ forecast }) {
   const days = useMemo(() => {
-    if (!forecast?.hourly) return [];
+    if (!forecast?.hourly?.length) return [];
 
+    // Group hourly array of objects by date
     const byDay = {};
     forecast.hourly.forEach(h => {
-      const day = h.time.slice(0, 10);
+      const day = h.time.slice(0, 10); // "YYYY-MM-DD"
       if (!byDay[day]) byDay[day] = [];
       byDay[day].push(h);
     });

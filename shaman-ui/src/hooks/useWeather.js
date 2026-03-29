@@ -3,10 +3,10 @@ import { useState, useEffect, useCallback } from "react";
 import { fetchOmen, fetchForecast } from "../services/api";
 
 export function useWeather(crop = "corn") {
-  const [omen,     setOmen]     = useState(null);
-  const [forecast, setForecast] = useState(null);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [omen,        setOmen]        = useState(null);
+  const [forecast,    setForecast]    = useState(null);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const load = useCallback(async () => {
@@ -17,7 +17,13 @@ export function useWeather(crop = "corn") {
         fetchOmen(crop),
         fetchForecast(),
       ]);
+      if (!omenData?.omen || !omenData?.prediction) {
+        throw new Error("Invalid omen payload received from server");
+      }
       setOmen(omenData);
+      // forecastData.hourly is an array of objects:
+      // [{ time, temperature, feelsLike, precipitation, humidity, windSpeed,
+      //    windGusts, snowfall, weatherCode, soilTemp, soilMoisture }, ...]
       setForecast(forecastData);
       setLastUpdated(new Date());
     } catch (err) {
@@ -29,7 +35,6 @@ export function useWeather(crop = "corn") {
 
   useEffect(() => {
     load();
-    // Auto-refresh every 10 minutes
     const interval = setInterval(load, 10 * 60 * 1000);
     return () => clearInterval(interval);
   }, [load]);

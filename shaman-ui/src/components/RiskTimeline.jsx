@@ -1,4 +1,5 @@
 // components/RiskTimeline.jsx
+// forecast.hourly = [{ time, temperature, precipitation, ... }, ...]
 import React, { useMemo } from "react";
 import {
   Chart as ChartJS,
@@ -12,23 +13,21 @@ ChartJS.register(
   LineElement, BarElement, Tooltip, Legend, Filler
 );
 
-const FROST_LINE = 32; // °F
-
 export default function RiskTimeline({ forecast }) {
   const { labels, temps, precip, frostFlags } = useMemo(() => {
-    if (!forecast?.hourly) return { labels: [], temps: [], precip: [], frostFlags: [] };
+    if (!forecast?.hourly?.length) return { labels: [], temps: [], precip: [], frostFlags: [] };
 
-    // Show next 72 hours
+    // Show next 72 hours — hourly is array of objects
     const slice = forecast.hourly.slice(0, 72);
 
     return {
       labels:     slice.map(h => {
         const d = new Date(h.time);
-        return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:00`;
+        return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:00`;
       }),
       temps:      slice.map(h => h.temperature),
       precip:     slice.map(h => h.precipitation),
-      frostFlags: slice.map(h => h.temperature <= FROST_LINE ? h.temperature : null),
+      frostFlags: slice.map(h => h.temperature <= 32 ? h.temperature : null),
     };
   }, [forecast]);
 

@@ -73,7 +73,7 @@ export default function App() {
         )}
 
         {/* Content */}
-        {omen && (
+        {omen?.omen && omen?.prediction && (
           <>
             <OmenFeed omen={omen} crop={crop} />
             <CurrentConditions forecast={forecast} />
