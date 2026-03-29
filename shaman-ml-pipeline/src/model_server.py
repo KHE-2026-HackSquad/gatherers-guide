@@ -77,13 +77,6 @@ def predict():
 def model_info():
     return jsonify(META)
 
-@app.route('/health')
-def health():
-    return {'status': 'ok'}, 200
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    # ... your existing predict logic
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=False)
