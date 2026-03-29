@@ -54,7 +54,7 @@ export default function OmenFeed({ omen, crop }) {
           <span className={`value ${frostRisk === "HIGH" ? "text-blue-400" : "text-moss"}`}>
             {frostRisk}
           </span>
-          <span className="unit">next 48 hrs</span>
+          <span className="unit">kill threshold: {features.threshold_used ?? "N/A"}°F</span>
         </div>
         <div className="stat-chip">
           <span className="label">Wait Cycles</span>

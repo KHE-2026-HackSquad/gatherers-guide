@@ -12,19 +12,23 @@ const FROST_THRESHOLDS = {
 
 function scoreDay(hours, frostThreshold) {
   if (!hours.length) return 0;
-  let score = 100;
   const minTemp = Math.min(...hours.map(h => h.temperature));
+
+  // Hard zero — crop cannot survive if temps cross the kill threshold
+  if (minTemp <= frostThreshold) return 0;
+
+  let score = 100;
   const totalPrecip = hours.reduce((a, h) => a + h.precipitation, 0);
   const maxGust = Math.max(...hours.map(h => h.windGusts));
   const avgHumidity = hours.reduce((a, h) => a + h.humidity, 0) / hours.length;
 
-  if (minTemp < frostThreshold)          score -= 40;
-  else if (minTemp < frostThreshold + 4) score -= 20;
-  if (totalPrecip > 0.5)   score -= 30;
-  else if (totalPrecip > 0.2) score -= 15;
-  if (maxGust > 35)        score -= 20;
-  else if (maxGust > 20)   score -= 10;
-  if (avgHumidity > 90)    score -= 10;
+  // Within 4°F of threshold = serious caution
+  if (minTemp < frostThreshold + 4) score -= 30;
+  if (totalPrecip > 0.5)            score -= 30;
+  else if (totalPrecip > 0.2)       score -= 15;
+  if (maxGust > 35)                 score -= 20;
+  else if (maxGust > 20)            score -= 10;
+  if (avgHumidity > 90)             score -= 10;
 
   return Math.max(0, score);
 }

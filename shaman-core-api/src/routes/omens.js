@@ -12,15 +12,15 @@ function generateOmen(prediction, frostRisk, cropType) {
   if (frostRisk === "HIGH" && prob > 0.6) {
     return {
       level:   "DANGER",
-      icon:    "🔥",
-      message: `The frost-spirit and the flood-spirit walk together. ${cropLabel} faces a ${Math.round(prob * 100)}% chance of loss. Do not plant — wait ${wait} sun-cycle${wait !== 1 ? "s" : ""} for the land to recover.`,
+      icon:    "�",
+      message: `${cropLabel} cannot survive these conditions. Temperatures will fall below the kill threshold — a ${Math.round(prob * 100)}% chance of total crop loss. Do not plant. Wait ${wait} sun-cycle${wait !== 1 ? "s" : ""} and watch for a sustained warm stretch before sowing.`,
     };
   }
   if (frostRisk === "HIGH") {
     return {
-      level:   "WARNING",
+      level:   "DANGER",
       icon:    "❄️",
-      message: `The cold spirit will cross the sacred threshold for ${cropLabel} in the next 48 hours. Protect what is already in the ground. Hold off on new planting until temperatures rise.`,
+      message: `Temperatures in the next 48 hours will cross the frost kill threshold for ${cropLabel}. This crop will not survive a planting right now. Hold until overnight lows are consistently above ${prediction.features?.threshold_used ?? "the danger threshold"}°F.`,
     };
   }
   if (prob > 0.6) {
