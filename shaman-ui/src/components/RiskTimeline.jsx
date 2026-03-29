@@ -1,148 +1,119 @@
-// components/RiskTimeline.jsx
-// forecast.hourly = [{ time, temperature, precipitation, ... }, ...]
-import React, { useMemo } from "react";
-import {
-  Chart as ChartJS,
-  CategoryScale, LinearScale, PointElement,
-  LineElement, BarElement, Tooltip, Legend, Filler,
-} from "chart.js";
-import { Line } from "react-chartjs-2";
+import React from 'react';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+  Tooltip, ResponsiveContainer, ReferenceLine, Scatter 
+} from 'recharts';
 
-ChartJS.register(
-  CategoryScale, LinearScale, PointElement,
-  LineElement, BarElement, Tooltip, Legend, Filler
-);
+const RiskTimeline = ({ forecast }) => {
+  if (!forecast || !forecast.hourly) return null;
 
-export default function RiskTimeline({ forecast }) {
-  const { labels, temps, precip, frostFlags } = useMemo(() => {
-    if (!forecast?.hourly?.length) return { labels: [], temps: [], precip: [], frostFlags: [] };
+  // 1. Slice to exactly 48 hours for a tighter "Critical Window" view
+  const data = forecast.hourly.slice(0, 48).map(h => ({
+    ...h,
+    displayTime: new Date(h.time).toLocaleTimeString([], { 
+      month: 'numeric', day: 'numeric', hour: '2-digit' 
+    }),
+    // Logic for the Blue Dots: Trigger if temp is at or below 32°F
+    frostPoint: h.temperature <= 32 ? h.temperature : null
+  }));
 
-    // Show next 72 hours — hourly is array of objects
-    const slice = forecast.hourly.slice(0, 72);
-
-    return {
-      labels:     slice.map(h => {
-        const d = new Date(h.time);
-        return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:00`;
-      }),
-      temps:      slice.map(h => h.temperature),
-      precip:     slice.map(h => h.precipitation),
-      frostFlags: slice.map(h => h.temperature <= 32 ? h.temperature : null),
-    };
-  }, [forecast]);
-
-  if (!labels.length) return null;
-
-  const data = {
-    labels,
-    datasets: [
-      {
-        label:           "Temperature (°F)",
-        data:            temps,
-        borderColor:     "#e88a1a",
-        backgroundColor: "rgba(232,138,26,0.08)",
-        borderWidth:     2,
-        pointRadius:     0,
-        pointHoverRadius: 4,
-        tension:         0.4,
-        fill:            true,
-        yAxisID:         "yTemp",
-      },
-      {
-        label:       "Frost Zone",
-        data:        frostFlags,
-        borderColor: "rgba(96,165,250,0.8)",
-        backgroundColor: "rgba(96,165,250,0.15)",
-        borderWidth: 0,
-        pointRadius: 5,
-        pointBackgroundColor: "#60a5fa",
-        tension:     0,
-        yAxisID:     "yTemp",
-      },
-      {
-        label:           "Precipitation (in)",
-        data:            precip,
-        borderColor:     "rgba(82,168,69,0.7)",
-        backgroundColor: "rgba(82,168,69,0.25)",
-        borderWidth:     1.5,
-        pointRadius:     0,
-        tension:         0.3,
-        fill:            true,
-        yAxisID:         "yPrecip",
-      },
-    ],
-  };
-
-  const options = {
-    responsive:          true,
-    maintainAspectRatio: false,
-    interaction: { mode: "index", intersect: false },
-    plugins: {
-      legend: {
-        labels: {
-          color: "#cfc8b5",
-          font:  { family: "DM Sans", size: 12 },
-          boxWidth: 12,
-        },
-      },
-      tooltip: {
-        backgroundColor: "#2e2820",
-        titleColor:      "#f9c97a",
-        bodyColor:       "#cfc8b5",
-        borderColor:     "#5a5145",
-        borderWidth:     1,
-      },
-    },
-    scales: {
-      x: {
-        ticks: {
-          color:       "#9c9280",
-          font:        { family: "DM Mono", size: 10 },
-          maxTicksLimit: 12,
-          maxRotation: 0,
-        },
-        grid: { color: "rgba(255,255,255,0.04)" },
-      },
-      yTemp: {
-        type:     "linear",
-        position: "left",
-        ticks: {
-          color: "#9c9280",
-          font:  { family: "DM Mono", size: 11 },
-          callback: (v) => `${v}°F`,
-        },
-        grid: { color: "rgba(255,255,255,0.04)" },
-        // draw frost line
-        afterDataLimits(axis) {
-          axis.min = Math.min(axis.min, 20);
-        },
-      },
-      yPrecip: {
-        type:     "linear",
-        position: "right",
-        ticks: {
-          color: "#52a845",
-          font:  { family: "DM Mono", size: 11 },
-          callback: (v) => `${v}"`,
-        },
-        grid: { drawOnChartArea: false },
-        min:  0,
-      },
-    },
-    // Draw frost threshold line as annotation
-    animation: { duration: 600 },
+  // Custom Tooltip to keep the Shamanic theme
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const d = payload[0].payload;
+      return (
+        <div className="bg-ash-dark border border-stone/50 p-3 rounded-lg shadow-xl backdrop-blur-md">
+          <p className="text-ember font-bold text-xs mb-1">{d.displayTime}</p>
+          <p className="text-stone-light text-sm">Temp: <span className="text-white">{d.temperature}°F</span></p>
+          <p className="text-stone-light text-sm">Precip: <span className="text-sky-400">{d.precipitation}"</span></p>
+          {d.temperature <= 32 && (
+            <p className="text-sky-300 text-[10px] mt-1 italic">❄️ Frost Spirit Active</p>
+          )}
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
-    <div className="tribal-card">
-      <div className="section-label">72-Hour Temperature &amp; Precipitation</div>
-      <div className="flex items-center gap-3 mb-4 text-xs text-blue-400">
-        <span className="inline-block w-3 h-3 rounded-full bg-blue-400" />
-        Blue dots = temperature at or below frost threshold (32°F)
+    <div className="tribal-card overflow-hidden">
+      <div className="section-label mb-2">48-HOUR TEMPERATURE & PRECIPITATION</div>
+      <div className="flex items-center gap-4 mb-6 text-[10px] uppercase tracking-widest text-stone">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)]"></span>
+          <span>Blue dots = Frost Threshold (≤32°F)</span>
+        </div>
       </div>
-      <div style={{ height: 280 }}>
-        <Line data={data} options={options} />
+
+      <div className="h-[300px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="tempGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="precipGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4}/>
+                <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            
+            <CartesianGrid strokeDasharray="3 3" stroke="#2d2d2d" vertical={false} />
+            
+            <XAxis 
+              dataKey="displayTime" 
+              stroke="#57534e" 
+              fontSize={9}
+              tickSize={10}
+              interval={5} // Shows label every 6 hours
+            />
+            
+            <YAxis yAxisId="left" stroke="#57534e" fontSize={10} unit="°" />
+            <YAxis yAxisId="right" orientation="right" stroke="#57534e" fontSize={10} unit='"' />
+
+            <Tooltip content={<CustomTooltip />} />
+
+            {/* Temperature Line */}
+            <Area
+              yAxisId="left"
+              type="monotone"
+              dataKey="temperature"
+              stroke="#f59e0b"
+              strokeWidth={2}
+              fillOpacity={1}
+              fill="url(#tempGradient)"
+              name="Temperature"
+            />
+
+            {/* Precipitation Area */}
+            <Area
+              yAxisId="right"
+              type="step"
+              dataKey="precipitation"
+              stroke="#0ea5e9"
+              strokeWidth={1}
+              fillOpacity={1}
+              fill="url(#precipGradient)"
+              name="Precipitation"
+            />
+
+            {/* Frost Spirit Dots */}
+            <Scatter
+              yAxisId="left"
+              dataKey="frostPoint"
+              fill="#0ea5e9"
+              shape="circle"
+              className="drop-shadow-[0_0_5px_#0ea5e9]"
+            />
+
+            {/* Zero Line for Precipitation */}
+            <ReferenceLine yAxisId="right" y={0} stroke="#444" />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
-}
+};
+
+export default RiskTimeline;

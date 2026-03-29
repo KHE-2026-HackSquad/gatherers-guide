@@ -15,11 +15,20 @@ export default function SprayWindows({ forecast }) {
       } else if (dt - current.end <= 3600001) {
         current.end = dt;
       } else {
-        groups.push(current);
-        current = { start: dt, end: dt };
+        const duration = (prev - start) / 3600000 + 1;
+        blocks.push({
+          start: start,
+          end: prev,
+          duration: Math.round(duration)
+        });
+        if (current) {
+          start = current;
+          prev = current;
+        }
       }
-    });
-    if (current) groups.push(current);
+    }
+    return blocks;
+  };
 
     return groups.slice(0, 6).map(g => ({
       dayStr: g.start.toLocaleString("en-US", { weekday: "short", month: "numeric", day: "numeric" }),
@@ -31,9 +40,9 @@ export default function SprayWindows({ forecast }) {
 
   return (
     <div className="tribal-card">
-      <div className="section-label">Safe Spray Windows</div>
-      <p className="text-stone text-sm mb-4">
-        Hours where wind &lt;10 mph, humidity 40–90%, and no precipitation — safe for pesticide or herbicide application.
+      <div className="section-label mb-2">SAFE SPRAY WINDOWS</div>
+      <p className="text-stone text-[11px] mb-6 uppercase tracking-wider">
+        Wind &lt; 10 mph | Humidity 40–90% | Zero Precipitation
       </p>
 
       {windows.length === 0 ? (
@@ -67,9 +76,9 @@ export default function SprayWindows({ forecast }) {
                 {w.durationHrs}h
               </span>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

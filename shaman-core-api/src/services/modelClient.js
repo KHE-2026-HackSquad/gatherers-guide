@@ -3,30 +3,51 @@
 
 const MODEL_URL = process.env.MODEL_SERVER_URL || "http://localhost:5001/predict";
 
+// Refined granular thresholds for Portage County, OH crops
 const FROST_THRESHOLDS = {
-  strawberry: 32, tomato: 33, corn: 28, soybean: 28, wheat: 22,
+  strawberry: 32, // Danger at freezing
+  tomato:     33, // Very tender; 33F can cause damage
+  soybean:    30, // More sensitive than corn during emergence
+  corn:       28, // Can handle a light frost if growing point is below ground
+  wheat:      24, // Very hardy winter/spring variety threshold
 };
 
 function buildFeatureVector(forecast, cropType = "corn") {
-  const temps    = Array.from(forecast.temperature_2m   || []);
-  const precip   = Array.from(forecast.precipitation    || []);
-  const humidity = Array.from(forecast.relative_humidity_2m || []);
-  const wind     = Array.from(forecast.wind_speed_10m   || []);
-  const soilTemp = Array.from(forecast.soil_temperature_0cm || []);
-  const soilMoist= Array.from(forecast.soil_moisture_0_to_1cm || []);
+  // 1. Define "Now" (floor to the top of the hour) to filter out past data
+  const now = new Date();
+  now.setMinutes(0, 0, 0, 0);
 
-  const threshold        = FROST_THRESHOLDS[cropType] ?? 28;
-  const next48Temps      = temps.slice(0, 48);
-  const next7dPrecip     = precip.slice(0, 168);
+  // 2. Map forecast into a combined array so we can filter all fields by time simultaneously
+  const combined = (forecast.time || []).map((t, i) => ({
+    time:      new Date(t),
+    temp:      forecast.temperature_2m?.[i] ?? 50,
+    precip:    forecast.precipitation?.[i] ?? 0,
+    humid:     forecast.relative_humidity_2m?.[i] ?? 60,
+    wind:      forecast.wind_speed_10m?.[i] ?? 5,
+    soilTemp:  forecast.soil_temperature_0cm?.[i] ?? 50,
+    soilMoist: forecast.soil_moisture_0_to_1cm?.[i] ?? 0.3
+  }));
 
-  const minTemp48h       = next48Temps.length ? Math.min(...next48Temps) : 50;
-  // Count hours below THIS crop's frost threshold — differs per crop
-  const frostDegreeHours = next48Temps.filter(t => t < threshold).length;
-  const precip7dayIn     = next7dPrecip.reduce((a, b) => a + (b || 0), 0);
-  const avgHumidity      = humidity.slice(0, 48).reduce((a, b) => a + (b || 0), 0) / 48;
-  const avgWind          = wind.slice(0, 48).reduce((a, b) => a + (b || 0), 0) / 48;
-  const avgSoilTemp      = soilTemp.slice(0, 48).reduce((a, b) => a + (b || 0), 0) / 48;
-  const avgSoilMoist     = soilMoist.slice(0, 48).reduce((a, b) => a + (b || 0), 0) / 48;
+  // 3. Filter for FUTURE data only (Current hour and onwards)
+  const futureData = combined.filter(d => d.time >= now);
+
+  // 4. Extract future slices for calculation
+  const next48 = futureData.slice(0, 48); // Exactly the next 48 hours from NOW
+  const next7d = futureData.slice(0, 168); // Next 7 days for precip accumulation
+
+  // 5. Crop-specific threshold logic
+  const threshold = FROST_THRESHOLDS[cropType] ?? 28;
+
+  // 6. Calculate Features based strictly on future data
+  const minTemp48h       = next48.length ? Math.min(...next48.map(d => d.temp)) : 50;
+  const frostDegreeHours = next48.filter(d => d.temp < threshold).length;
+  const precip7dayIn     = next7d.reduce((a, b) => a + (b.precip || 0), 0);
+  
+  const avgHumidity      = next48.length ? next48.reduce((a, b) => a + b.humid, 0) / next48.length : 60;
+  const avgWind          = next48.length ? next48.reduce((a, b) => a + b.wind, 0) / next48.length : 5;
+  const avgSoilTemp      = next48.length ? next48.reduce((a, b) => a + b.soilTemp, 0) / next48.length : 50;
+  const avgSoilMoist     = next48.length ? next48.reduce((a, b) => a + b.soilMoist, 0) / next48.length : 0.3;
+  
   const soilSaturation   = Math.min(avgSoilMoist / 0.5, 1.0);
   const dayOfYear        = Math.ceil((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
 
@@ -39,6 +60,7 @@ function buildFeatureVector(forecast, cropType = "corn") {
     avg_soil_temp:         parseFloat(avgSoilTemp.toFixed(2)),
     soil_saturation_index: parseFloat(soilSaturation.toFixed(4)),
     day_of_year:           dayOfYear,
+    threshold_used:        threshold // Included for UI clarity
   };
 }
 
@@ -60,13 +82,12 @@ async function getPrediction(forecast, cropType = "corn") {
     return {
       cropLossProbability: parseFloat(score.toFixed(2)),
       plantingScore:       Math.max(0, Math.round(100 - score * 100)),
-      recommendedWaitDays: score > 0.6 ? 3 : score > 0.3 ? 1 : features.frost_degree_hours > 0 ? 2 : 0,
+      recommendedWaitDays: score > 0.6 ? 3 : score > 0.3 ? 1 : 0,
       confidence:          result?.predictions?.[0]?.confidence ?? 0.85,
       source:              "xgboost",
       features,
     };
   } catch (err) {
-    // Graceful fallback — stub so the rest of the app still works
     console.warn("[modelClient] Model server unreachable, using stub:", err.message);
     return stubPrediction(features);
   }
