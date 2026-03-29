@@ -1,28 +1,19 @@
-import React from 'react';
+// components/SprayWindows.jsx
+import React, { useMemo } from "react";
 
-const SprayWindows = ({ forecast }) => {
-  if (!forecast || !forecast.sprayWindows || forecast.sprayWindows.length === 0) {
-    return (
-      <div className="tribal-card p-6 text-center">
-        <p className="text-stone text-sm">No safe spray windows detected in the current cycle.</p>
-      </div>
-    );
-  }
+export default function SprayWindows({ forecast }) {
+  const windows = useMemo(() => {
+    if (!forecast?.sprayWindows?.length) return [];
 
-  // Helper to group consecutive hourly windows into blocks
-  const groupWindows = (times) => {
-    const blocks = [];
-    if (times.length === 0) return blocks;
+    const groups = [];
+    let current = null;
 
-    let start = new Date(times[0]);
-    let prev = new Date(times[0]);
-
-    for (let i = 1; i <= times.length; i++) {
-      const current = times[i] ? new Date(times[i]) : null;
-      
-      // Check if current hour is consecutive (1 hour difference)
-      if (current && (current - prev) / 3600000 === 1) {
-        prev = current;
+    forecast.sprayWindows.forEach(isoTime => {
+      const dt = new Date(isoTime);
+      if (!current) {
+        current = { start: dt, end: dt };
+      } else if (dt - current.end <= 3600001) {
+        current.end = dt;
       } else {
         const duration = (prev - start) / 3600000 + 1;
         blocks.push({
@@ -39,15 +30,13 @@ const SprayWindows = ({ forecast }) => {
     return blocks;
   };
 
-  const blocks = groupWindows(forecast.sprayWindows);
-
-  const formatTime = (date) => {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  };
-
-  const formatDate = (date) => {
-    return date.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' });
-  };
+    return groups.slice(0, 6).map(g => ({
+      dayStr: g.start.toLocaleString("en-US", { weekday: "short", month: "numeric", day: "numeric" }),
+      startTime: g.start.toLocaleString("en-US", { hour: "numeric", hour12: true }),
+      endTime: g.end.toLocaleString("en-US", { hour: "numeric", hour12: true }),
+      durationHrs: Math.round((g.end - g.start) / 3600000) + 1,
+    }));
+  }, [forecast]);
 
   return (
     <div className="tribal-card">
@@ -56,27 +45,35 @@ const SprayWindows = ({ forecast }) => {
         Wind &lt; 10 mph | Humidity 40–90% | Zero Precipitation
       </p>
 
-      <div className="grid gap-3">
-        {blocks.map((block, idx) => (
-          <div 
-            key={idx} 
-            className="flex items-center justify-between p-4 bg-ash-dark/50 border border-stone/20 rounded-lg hover:border-stone/40 transition-colors"
-          >
-            <div className="flex flex-col gap-1">
-              <span className="text-stone-light text-xs font-semibold uppercase tracking-widest">
-                {formatDate(block.start)}
-              </span>
-              <span className="text-white text-lg font-medium">
-                {formatTime(block.start)} — {formatTime(block.end)}
-              </span>
-            </div>
+      {windows.length === 0 ? (
+        <div className="text-amber-400 text-sm">
+          ⚠️ No favorable spray windows found in the next 7 days.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {windows.map((w, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-3 bg-stone/5 border border-stone/15 rounded-xl px-4 py-3"
+            >
+              {/* Status dot */}
+              <div className="w-2 h-2 rounded-full bg-moss flex-shrink-0" />
 
-            <div className="flex flex-col items-end">
-              <span className="bg-stone/10 border border-stone/20 px-3 py-1 rounded text-[10px] font-bold text-stone-light uppercase tracking-tighter">
-                {block.duration}h window
+              {/* Day badge */}
+              <span className="text-xs font-medium text-sky-700 bg-sky-50 rounded-md px-2 py-1 whitespace-nowrap flex-shrink-0">
+                {w.dayStr}
               </span>
-              <span className="text-[10px] text-stone mt-1 uppercase tracking-widest">
-                Optimal Conditions
+
+              {/* Time range */}
+              <span className="text-sm font-medium text-primary flex-1">
+                {w.startTime}
+                <span className="text-stone mx-1">→</span>
+                {w.endTime}
+              </span>
+
+              {/* Duration pill */}
+              <span className="text-xs text-emerald-700 bg-emerald-50 rounded-md px-2 py-1 whitespace-nowrap flex-shrink-0">
+                {w.durationHrs}h
               </span>
             </div>
           </div>
@@ -84,6 +81,4 @@ const SprayWindows = ({ forecast }) => {
       </div>
     </div>
   );
-};
-
-export default SprayWindows;
+}
