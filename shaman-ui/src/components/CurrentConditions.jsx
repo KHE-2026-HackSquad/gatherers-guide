@@ -1,5 +1,4 @@
 // components/CurrentConditions.jsx
-// forecast.hourly = array of objects: [{ time, temperature, feelsLike, ... }]
 import React from "react";
 
 const WMO_CODES = {
@@ -16,33 +15,45 @@ const WMO_CODES = {
 
 export default function CurrentConditions({ forecast }) {
   if (!forecast?.hourly?.length) return null;
-
-  // hourly is array of objects — first entry = current hour
   const now = forecast.hourly[0];
 
   return (
     <div className="tribal-card">
-      <div className="section-label">Current Conditions — Kent, OH</div>
-      <div className="flex items-end gap-3 mb-4">
-        <span className="text-5xl font-display font-bold text-ember">{now.temperature}°</span>
-        <span className="text-stone mb-1">Feels like {now.feelsLike}°F</span>
+
+      {/* Centered hero block */}
+      <div className="text-center mb-5">
+        <p className="text-xs font-medium tracking-widest uppercase text-stone mb-2">
+          Kent, OH — current conditions
+        </p>
+        <p className="text-7xl font-display font-bold text-ember leading-none mb-1">
+          {now.temperature}°
+        </p>
+        <p className="text-stone-light text-base mb-1">
+          {WMO_CODES[now.weatherCode] || "Unknown conditions"}
+        </p>
+        <p className="text-stone text-sm">
+          Feels like {now.feelsLike}°F
+        </p>
       </div>
-      <div className="text-stone-light text-sm mb-4">
-        {WMO_CODES[now.weatherCode] || "Unknown conditions"}
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+
+      {/* Divider */}
+      <div className="border-t border-ash mb-4" />
+
+      {/* Stat grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
         {[
-          ["💧 Humidity",     `${now.humidity}%`],
-          ["🌬️ Wind",        `${now.windSpeed} mph`],
-          ["💨 Gusts",        `${now.windGusts} mph`],
-          ["🌡️ Soil Temp",   `${now.soilTemp}°F`],
+          ["Humidity",   `${now.humidity}%`],
+          ["Wind",       `${now.windSpeed} mph`],
+          ["Gusts",      `${now.windGusts} mph`],
+          ["Soil temp",  `${now.soilTemp}°F`],
         ].map(([label, val]) => (
-          <div key={label} className="bg-ash-dark rounded-lg px-3 py-2">
-            <div className="text-stone text-xs">{label}</div>
-            <div className="text-stone-light font-mono">{val}</div>
+          <div key={label} className="bg-ash-dark rounded-lg px-3 py-2 text-center">
+            <div className="text-stone text-xs mb-1">{label}</div>
+            <div className="text-stone-light font-medium">{val}</div>
           </div>
         ))}
       </div>
+
     </div>
   );
 }
