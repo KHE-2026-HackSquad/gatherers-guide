@@ -1,48 +1,49 @@
-version: "3.9"
+  version: "3.9"
 
-services:
+  services:
 
-  # ── ML Model Server (Python/Flask) ──────────────────────────────────────────
-  shaman-model:
-    build: ./shaman-ml-pipeline
-    container_name: shaman-model
-    ports:
-      - "5001:5001"
-    volumes:
-      - ./shaman-ml-pipeline/models:/app/models   # persist trained model
-      - ./shaman-ml-pipeline/data:/app/data       # persist CSV data
-    environment:
-      - FLASK_ENV=development
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    # ── ML Model Server (Python/Flask) ──────────────────────────────────────────
+    shaman-model:
+      build: ./shaman-ml-pipeline
+      container_name: shaman-model
+      ports:
+        - "5001:5001"
+      volumes:
+        - ./shaman-ml-pipeline/models:/app/models   # persist trained model
+        - ./shaman-ml-pipeline/data:/app/data       # persist CSV data
+      environment:
+        - FLASK_ENV=development
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+        interval: 10s
+        timeout: 5s
+        retries: 10
+        start_period: 20s
 
-  # ── Express API ──────────────────────────────────────────────────────────────
-  shaman-api:
-    build: ./shaman-core-api
-    container_name: shaman-api
-    ports:
-      - "3000:3000"
-    environment:
-      - MODEL_SERVER_URL=http://shaman-model:5001/predict
-      - NODE_ENV=development
-    depends_on:
-      shaman-model:
-        condition: service_healthy
-    volumes:
-      - ./shaman-core-api/src:/app/src             # hot reload in dev
+    # ── Express API ──────────────────────────────────────────────────────────────
+    shaman-api:
+      build: ./shaman-core-api
+      container_name: shaman-api
+      ports:
+        - "3000:3000"
+      environment:
+        - MODEL_SERVER_URL=http://shaman-model:5001/predict
+        - NODE_ENV=development
+      depends_on:
+        shaman-model:
+          condition: service_healthy
+      volumes:
+        - ./shaman-core-api/src:/app/src             # hot reload in dev
 
-  # ── React Frontend ───────────────────────────────────────────────────────────
-  shaman-ui:
-    build: ./shaman-ui
-    container_name: shaman-ui
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=http://localhost:3000
-    depends_on:
-      - shaman-api
-    volumes:
-      - ./shaman-ui/src:/app/src                   # hot reload in dev
+    # ── React Frontend ───────────────────────────────────────────────────────────
+    shaman-ui:
+      build: ./shaman-ui
+      container_name: shaman-ui
+      ports:
+        - "5173:5173"
+      environment:
+        - VITE_API_URL=http://localhost:3000
+      depends_on:
+        - shaman-api
+      volumes:
+        - ./shaman-ui/src:/app/src                   # hot reload in dev
