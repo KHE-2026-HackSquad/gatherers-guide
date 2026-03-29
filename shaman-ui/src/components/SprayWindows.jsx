@@ -1,62 +1,89 @@
-// components/SprayWindows.jsx
-import React, { useMemo } from "react";
+import React from 'react';
 
-export default function SprayWindows({ forecast }) {
-  const windows = useMemo(() => {
-    if (!forecast?.sprayWindows?.length) return [];
+const SprayWindows = ({ forecast }) => {
+  if (!forecast || !forecast.sprayWindows || forecast.sprayWindows.length === 0) {
+    return (
+      <div className="tribal-card p-6 text-center">
+        <p className="text-stone text-sm">No safe spray windows detected in the current cycle.</p>
+      </div>
+    );
+  }
 
-    // Group consecutive hours into windows
-    const groups = [];
-    let current = null;
+  // Helper to group consecutive hourly windows into blocks
+  const groupWindows = (times) => {
+    const blocks = [];
+    if (times.length === 0) return blocks;
 
-    forecast.sprayWindows.forEach(isoTime => {
-      const dt = new Date(isoTime);
-      if (!current) {
-        current = { start: dt, end: dt };
-      } else if (dt - current.end <= 3600001) {
-        current.end = dt;
+    let start = new Date(times[0]);
+    let prev = new Date(times[0]);
+
+    for (let i = 1; i <= times.length; i++) {
+      const current = times[i] ? new Date(times[i]) : null;
+      
+      // Check if current hour is consecutive (1 hour difference)
+      if (current && (current - prev) / 3600000 === 1) {
+        prev = current;
       } else {
-        groups.push(current);
-        current = { start: dt, end: dt };
+        const duration = (prev - start) / 3600000 + 1;
+        blocks.push({
+          start: start,
+          end: prev,
+          duration: Math.round(duration)
+        });
+        if (current) {
+          start = current;
+          prev = current;
+        }
       }
-    });
-    if (current) groups.push(current);
+    }
+    return blocks;
+  };
 
-    return groups.slice(0, 6).map(g => ({
-      startStr: g.start.toLocaleString("en-US", { weekday: "short", month: "numeric", day: "numeric", hour: "numeric", hour12: true }),
-      endStr:   g.end.toLocaleString("en-US", { hour: "numeric", hour12: true }),
-      durationHrs: Math.round((g.end - g.start) / 3600000) + 1,
-    }));
-  }, [forecast]);
+  const blocks = groupWindows(forecast.sprayWindows);
+
+  const formatTime = (date) => {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' });
+  };
 
   return (
     <div className="tribal-card">
-      <div className="section-label">Safe Spray Windows</div>
-      <p className="text-stone text-sm mb-4">
-        Hours where wind &lt;10 mph, humidity 40–90%, and no precipitation — safe for pesticide or herbicide application.
+      <div className="section-label mb-2">SAFE SPRAY WINDOWS</div>
+      <p className="text-stone text-[11px] mb-6 uppercase tracking-wider">
+        Wind &lt; 10 mph | Humidity 40–90% | Zero Precipitation
       </p>
-      {windows.length === 0 ? (
-        <div className="text-amber-400 text-sm">
-          ⚠️ No favorable spray windows found in the next 7 days. The wind and rain spirits are restless.
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {windows.map((w, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between bg-moss/10 border border-moss/30 rounded-lg px-4 py-3"
-            >
-              <div>
-                <span className="text-moss font-semibold text-sm">✅ {w.startStr}</span>
-                <span className="text-stone text-sm"> → {w.endStr}</span>
-              </div>
-              <span className="text-stone text-xs bg-ash-dark px-2 py-1 rounded">
-                {w.durationHrs}h window
+
+      <div className="grid gap-3">
+        {blocks.map((block, idx) => (
+          <div 
+            key={idx} 
+            className="flex items-center justify-between p-4 bg-ash-dark/50 border border-stone/20 rounded-lg hover:border-stone/40 transition-colors"
+          >
+            <div className="flex flex-col gap-1">
+              <span className="text-stone-light text-xs font-semibold uppercase tracking-widest">
+                {formatDate(block.start)}
+              </span>
+              <span className="text-white text-lg font-medium">
+                {formatTime(block.start)} — {formatTime(block.end)}
               </span>
             </div>
-          ))}
-        </div>
-      )}
+
+            <div className="flex flex-col items-end">
+              <span className="bg-stone/10 border border-stone/20 px-3 py-1 rounded text-[10px] font-bold text-stone-light uppercase tracking-tighter">
+                {block.duration}h window
+              </span>
+              <span className="text-[10px] text-stone mt-1 uppercase tracking-widest">
+                Optimal Conditions
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
-}
+};
+
+export default SprayWindows;
