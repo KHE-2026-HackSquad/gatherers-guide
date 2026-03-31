@@ -16,34 +16,54 @@ BASE     = os.path.dirname(__file__)
 MODEL_PATH = os.path.join(BASE, "../models/shaman_xgb.pkl")
 META_PATH  = os.path.join(BASE, "../models/model_meta.json")
 
-# ── Load model once on startup ─────────────────────────────────────────────
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(
-        f"No model found at {MODEL_PATH}. "
-        "Run: docker compose run shaman-model python src/train_model.py"
-    )
+# ── Load model once on startup (degraded mode if missing) ─────────────────
+def load_model_and_meta():
+    if not os.path.exists(MODEL_PATH) or not os.path.exists(META_PATH):
+        print(
+            "No trained model found. Start in degraded mode and train with: "
+            "docker compose run shaman-model python src/train_model.py"
+        )
+        return None, {
+            "auc": None,
+            "feature_names": [],
+            "feature_importance": {},
+            "model_loaded": False,
+            "message": "Model not trained yet",
+        }
 
-with open(MODEL_PATH, "rb") as f:
-    MODEL = pickle.load(f)
+    with open(MODEL_PATH, "rb") as f:
+        model = pickle.load(f)
 
-with open(META_PATH, "r") as f:
-    META = json.load(f)
+    with open(META_PATH, "r") as f:
+        meta = json.load(f)
 
-FEATURE_NAMES = META["feature_names"]
-print(f"Shaman model loaded — AUC: {META['auc']} — Features: {len(FEATURE_NAMES)}")
+    meta["model_loaded"] = True
+    print(f"Shaman model loaded — AUC: {meta['auc']} — Features: {len(meta['feature_names'])}")
+    return model, meta
+
+
+MODEL, META = load_model_and_meta()
+FEATURE_NAMES = META.get("feature_names", [])
 
 # ── Routes ─────────────────────────────────────────────────────────────────
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
-        "status":   "The Shaman is awake",
-        "auc":      META["auc"],
+        "status":   "The Shaman is awake" if MODEL is not None else "Model not trained",
+        "auc":      META.get("auc"),
         "features": len(FEATURE_NAMES),
+        "modelLoaded": MODEL is not None,
     })
 
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
+        if MODEL is None:
+            return jsonify({
+                "error": "Model not trained",
+                "hint": "Run: docker compose run shaman-model python src/train_model.py",
+            }), 503
+
         body     = request.get_json(force=True)
         features = body.get("features", {})
 
@@ -75,7 +95,10 @@ def predict():
 
 @app.route("/model-info", methods=["GET"])
 def model_info():
-    return jsonify(META)
+    return jsonify({
+        **META,
+        "modelLoaded": MODEL is not None,
+    })
 
 
 if __name__ == "__main__":

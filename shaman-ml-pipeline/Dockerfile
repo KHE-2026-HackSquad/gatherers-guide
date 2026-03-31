@@ -13,5 +13,4 @@ RUN mkdir -p models data
 
 EXPOSE 5001
 
-# If model doesn't exist yet, train it first then serve
-CMD ["sh", "-c", "if [ ! -f models/shaman_xgb.pkl ]; then echo 'No model found — run: docker compose run shaman-model python src/train_model.py'; exit 1; fi && python src/model_server.py"]
+CMD ["python", "src/model_server.py"]
